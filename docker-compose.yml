@@ -1,0 +1,95 @@
+version: '3.8'
+
+# ============================================================================
+# VivyaSense Docker Compose - GPU Mode
+# Requires: NVIDIA Container Toolkit (nvidia-docker2)
+# Install: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+# ============================================================================
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: vivyasense-db-gpu
+    environment:
+      POSTGRES_DB: vivyasense_db
+      POSTGRES_USER: vivyasense
+      POSTGRES_PASSWORD: vivyasense123
+    volumes:
+      - postgres_data_gpu:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vivyasense"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vivyasense-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: vivyasense-redis-gpu
+    ports:
+      - "6379:6379"
+    networks:
+      - vivyasense-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vivyasense-backend-gpu
+    environment:
+      DATABASE_URL: postgresql://vivyasense:vivyasense123@db:5432/vivyasense_db
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
+      - ./detections:/app/detections
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - vivyasense-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vivyasense-frontend-gpu
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - vivyasense-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data_gpu:
+
+networks:
+  vivyasense-network:
+    driver: bridge
+
