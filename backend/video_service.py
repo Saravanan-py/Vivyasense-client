@@ -99,6 +99,20 @@ class VideoStream:
         self.heatmap_generator = None
         self.heatmap_enabled = camera_config.get('heatmap_enabled', False)
 
+        # Frame counting for fire, smoke, and fall detection (10 consecutive frames before alert)
+        self.detection_frame_counters = {
+            'fire': 0,
+            'smoke': 0,
+            'fall': 0
+        }
+        self.detection_cooldown = {
+            'fire': None,  # Last alert time
+            'smoke': None,
+            'fall': None
+        }
+        self.FRAMES_THRESHOLD = 10  # Number of consecutive frames before alert
+        self.COOLDOWN_SECONDS = 10  # 5 minutes cooldown between alerts
+
     def start(self):
         """Start the video stream threads (capture + processing)"""
         self.running = True
@@ -386,27 +400,80 @@ class VideoStream:
         detections_to_show = []
         violations = []
 
-        # Check for fire/smoke detection (always alert, no ROI required)
-        fire_smoke_classes = ['smoke', 'fire']
+        # Check for fire, smoke, and fall detection with frame counting (10 consecutive frames before alert)
+        critical_detection_classes = ['fire', 'smoke', 'fall']
+        fall_detection_classes = ['fall', 'no-fall']  # Both fall and no-fall should be shown
+        detected_classes = set()
+
         for detection in all_detections:
-            if detection['class'].lower() in fire_smoke_classes:
+            class_name = detection['class'].lower()
+
+            # Show fire, smoke, fall, and no-fall detections
+            if class_name in critical_detection_classes or class_name in fall_detection_classes:
                 detections_to_show.append(detection)
-                violation = {
-                    'violation_type': 'Fire Detection' if detection['class'].lower() == 'fire' else 'Smoke Detection',
-                    'object_class': detection['class'],
-                    'confidence': detection['confidence'],
-                    'bbox': detection['bbox'],
-                    'roi_name': self.camera_config.get('location', 'Unknown Location')
-                }
-                violations.append(violation)
-                # Save detection and send alert
-                self._handle_violation(frame, violation)
+
+            # Only track critical classes for alerting (not no-fall)
+            if class_name in critical_detection_classes:
+                detected_classes.add(class_name)
+
+                # Increment frame counter for this detection type
+                self.detection_frame_counters[class_name] += 1
+
+                # Check if we've reached the threshold (10 consecutive frames)
+                if self.detection_frame_counters[class_name] >= self.FRAMES_THRESHOLD:
+                    # Check cooldown period (5 minutes)
+                    current_time = datetime.now()
+                    last_alert_time = self.detection_cooldown[class_name]
+
+                    should_alert = False
+                    if last_alert_time is None:
+                        # First detection ever
+                        should_alert = True
+                    else:
+                        # Check if cooldown period has passed
+                        time_diff = (current_time - last_alert_time).total_seconds()
+                        if time_diff >= self.COOLDOWN_SECONDS:
+                            should_alert = True
+
+                    if should_alert:
+                        # Create violation
+                        if class_name == 'fire':
+                            violation_type = 'Fire Detection'
+                        elif class_name == 'smoke':
+                            violation_type = 'Smoke Detection'
+                        else:  # fall
+                            violation_type = 'Fall Detection'
+
+                        violation = {
+                            'violation_type': violation_type,
+                            'object_class': detection['class'],
+                            'confidence': detection['confidence'],
+                            'bbox': detection['bbox'],
+                            'roi_name': self.camera_config.get('location', 'Unknown Location')
+                        }
+                        violations.append(violation)
+
+                        # Save detection and send alert
+                        self._handle_violation(frame, violation)
+
+                        # Update cooldown timer
+                        self.detection_cooldown[class_name] = current_time
+
+                        logger.warning(f"🚨 {violation_type} alert sent! (Detected for {self.FRAMES_THRESHOLD} consecutive frames)")
+
+        # Reset counters for classes that were NOT detected in this frame
+        for class_name in critical_detection_classes:
+            if class_name not in detected_classes:
+                if self.detection_frame_counters[class_name] > 0:
+                    logger.info(f"Reset {class_name} counter (was {self.detection_frame_counters[class_name]}, detection lost)")
+                self.detection_frame_counters[class_name] = 0
 
         if roi_filtering_enabled:
             # If ROI filtering is enabled, only show detections inside ROIs
             for detection in all_detections:
-                # Skip fire/smoke as they're already handled
-                if detection['class'].lower() in fire_smoke_classes:
+                class_name = detection['class'].lower()
+                # Skip fire/smoke/fall/no-fall as they're already handled
+                if class_name in critical_detection_classes or class_name in fall_detection_classes:
                     continue
 
                 # Check if detection is inside any active ROI
@@ -416,9 +483,10 @@ class VideoStream:
                         # Don't save intrusion detection logs - only show visually
                         break  # Don't check other ROIs for this detection
         else:
-            # No ROI filtering - show all detections (except fire/smoke already handled)
+            # No ROI filtering - show all detections (except fire/smoke/fall/no-fall already handled)
             for detection in all_detections:
-                if detection['class'].lower() not in fire_smoke_classes:
+                class_name = detection['class'].lower()
+                if class_name not in critical_detection_classes and class_name not in fall_detection_classes:
                     detections_to_show.append(detection)
 
         # Count persons inside ROI if people counting is enabled

@@ -82,6 +82,14 @@ class AIDetectionService:
             'ppe_detection': {
                 'path': 'models/ppe_detection.pt',
                 'classes': ['person', 'ear', 'ear-mufs', 'face', 'face-guard', 'face-mask', 'foot', 'tool', 'glasses', 'gloves', 'helmet', 'hands', 'head', 'medical-suit', 'shoes', 'safety-suit', 'safety-vest']
+            },
+            'fire_detection': {
+                'path': 'models/fire_jayu_epochs20.pt',
+                'classes': ['fire', 'smoke']
+            },
+            'fall_detection': {
+                'path': 'models/best_fall.pt',
+                'classes': ['fall', 'no-fall']
             }
         }
 
@@ -319,7 +327,30 @@ class AIDetectionService:
                         break
 
             # Color coding based on detection type
-            if is_violation:
+            class_name = detection['class'].lower()
+
+            # Custom colors for fire, smoke, and fall detection
+            if class_name == 'fire':
+                # Orange-Red for fire
+                color = (0, 69, 255)  # BGR: Orange-Red
+                thickness = 3
+                label = f"fire: {detection['confidence']:.2f}"
+            elif class_name == 'smoke':
+                # Gray for smoke
+                color = (128, 128, 128)  # BGR: Gray
+                thickness = 3
+                label = f"smoke: {detection['confidence']:.2f}"
+            elif class_name == 'fall':
+                # Purple for fall detection
+                color = (128, 0, 128)  # BGR: Purple
+                thickness = 3
+                label = f"fall: {detection['confidence']:.2f}"
+            elif class_name == 'no-fall':
+                # Blue for no-fall (normal standing/sitting)
+                color = (255, 128, 0)  # BGR: Blue
+                thickness = 2
+                label = f"no-fall: {detection['confidence']:.2f}"
+            elif is_violation:
                 # Red for ROI violations - show only class name and confidence
                 color = (0, 0, 255)
                 thickness = 3

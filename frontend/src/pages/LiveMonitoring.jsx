@@ -217,6 +217,8 @@ const CameraFeed = ({ camera, onStart, onStop, onMaximize, onMinimize, isMaximiz
               <span className="text-xs font-medium text-white">
                 {camera.custom_model === 'raw_stream' && '📹 Raw'}
                 {camera.custom_model === 'general_detection' && '🎯 General'}
+                {camera.custom_model === 'fire_detection' && '🔥 Fire'}
+                {camera.custom_model === 'fall_detection' && '🚨 Fall'}
                 {camera.custom_model === 'ppe_detection' && '🦺 PPE'}
               </span>
             </div>

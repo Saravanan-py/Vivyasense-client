@@ -19,6 +19,8 @@ const MODEL_CLASSES = {
     'hair drier', 'toothbrush'
   ],
   'ppe_detection': ['person', 'ear', 'ear-mufs', 'face', 'face-guard', 'face-mask', 'foot', 'tool', 'glasses', 'gloves', 'helmet', 'hands', 'head', 'medical-suit', 'shoes', 'safety-suit', 'safety-vest'],
+  'fire_detection': ['fire', 'smoke'],
+  'fall_detection': ['fall', 'no-fall'],
   'raw_stream': []  // No AI processing - just raw video stream
 };
 
@@ -309,11 +311,15 @@ const EditCameraModal = ({ camera, onClose, onSuccess }) => {
                 <option value="raw_stream">📹 Raw Stream (No AI Detection - Low Latency)</option>
                 <option value="general_detection">🎯 General Detection (Person, Vehicle, Objects)</option>
                 <option value="ppe_detection">🦺 PPE Detection (Hardhat, Safety Vest, Mask)</option>
+                <option value="fire_detection">🔥 Fire & Smoke Detection</option>
+                <option value="fall_detection">🚨 Fall Detection</option>
               </select>
               <p className="mt-1 text-xs text-gray-500">
                 {formData.custom_model === 'raw_stream' && '✓ Raw video stream without AI processing - Lowest latency (1-3 sec delay)'}
                 {formData.custom_model === 'general_detection' && '✓ Default model - Ready to use'}
                 {formData.custom_model === 'ppe_detection' && '⚠️ Requires custom PPE model file'}
+                {formData.custom_model === 'fire_detection' && '🔥 Fire and smoke detection with smart alerting'}
+                {formData.custom_model === 'fall_detection' && '🚨 Fall detection with smart alerting'}
               </p>
             </div>
 
