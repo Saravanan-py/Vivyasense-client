@@ -156,53 +156,72 @@ class VideoStream:
         self.camera_config = camera_config
 
     def _capture_loop(self):
-        """NEW OPTIMIZED RTSP CAPTURE - Guaranteed 60 FPS with zero drops"""
+        """OPTIMIZED RTSP CAPTURE - Maximum FPS with minimal latency"""
         import time
-        import queue
 
         rtsp_url = self.camera_config['rtsp_url']
         is_cpu_mode = self.camera_config.get('is_cpu_mode', False)
 
-        logger.info(f"🚀 Initializing NEW capture system for camera {self.camera_id}")
+        logger.info(f"🚀 Initializing HIGH-PERFORMANCE capture for camera {self.camera_id}")
 
-        # === STEP 1: Open video source with optimal settings ===
+        # === STEP 1: Open video source with OPTIMIZED settings ===
         if rtsp_url == "0" or rtsp_url == 0:
             # Webcam - Simple and fast
             self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.cap.set(cv2.CAP_PROP_FPS, 60)
+            self.cap.set(cv2.CAP_PROP_FPS, 30)
             logger.info(f"📹 Webcam opened: camera {self.camera_id}")
         else:
-            # RTSP - Optimized for 60 FPS
-            # Simple, proven settings that work
-            os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'rtsp_transport;tcp'
+            # RTSP - OPTIMIZED FOR MAXIMUM FPS + LOW LATENCY
+            # Balanced settings: Fast but reliable
+            ffmpeg_options = (
+                'rtsp_transport;tcp|'       # TCP for reliability (UDP was causing HEVC errors)
+                'fflags;nobuffer|'          # Disable buffering
+                'flags;low_delay|'          # Low delay mode
+                'max_delay;500000|'         # 500ms max delay (was 0, too aggressive)
+                'probesize;32|'             # Fast stream analysis
+                'analyzeduration;0|'        # Skip analysis for speed
+                'sync;ext'                  # External sync for smooth playback
+            )
+            os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = ffmpeg_options
 
             self.cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
 
-            # Critical settings for smooth 60 FPS
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimal buffer
-            self.cap.set(cv2.CAP_PROP_FPS, 60)         # Request 60 FPS
+            # OPTIMIZED buffer settings for maximum FPS
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimal buffer (1 frame)
 
-            logger.info(f"📡 RTSP opened: camera {self.camera_id} (60 FPS mode)")
+            # Don't force codec - let FFMPEG auto-detect (fixes HEVC issues)
+            # self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'H264'))
+
+            logger.info(f"📡 RTSP opened with HIGH-PERFORMANCE mode: camera {self.camera_id}")
 
         if not self.cap.isOpened():
             logger.error(f"❌ Failed to open camera {self.camera_id}: {rtsp_url}")
             return
 
-        # === STEP 2: Frame capture loop - Simple and reliable ===
+        # === STEP 2: OPTIMIZED frame capture loop - MAXIMUM FPS ===
         frame_count = 0
         last_fps_time = time.time()
+        consecutive_failures = 0
 
-        logger.info(f"✅ Capture loop started for camera {self.camera_id}")
+        logger.info(f"✅ High-performance capture loop started for camera {self.camera_id}")
 
         while self.running:
-            # Read frame
+            # SIMPLE AND FAST: Just read frames as fast as possible
+            # Don't flush buffer - let OpenCV handle it with BUFFERSIZE=1
             ret, frame = self.cap.read()
 
             if not ret:
-                logger.warning(f"⚠️ Frame read failed, reconnecting camera {self.camera_id}...")
-                self._reconnect_camera(rtsp_url)
+                consecutive_failures += 1
+                if consecutive_failures > 10:
+                    logger.warning(f"⚠️ Multiple frame read failures, reconnecting camera {self.camera_id}...")
+                    self._reconnect_camera(rtsp_url)
+                    consecutive_failures = 0
+                # Small delay on failure to prevent CPU spinning
+                time.sleep(0.001)
                 continue
+
+            consecutive_failures = 0  # Reset on success
 
             # Update frame atomically (no blocking)
             self.captured_frame = frame
@@ -212,11 +231,11 @@ class VideoStream:
             if frame_count % 60 == 0:
                 current_time = time.time()
                 fps = 60 / (current_time - last_fps_time)
-                logger.info(f"📊 Camera {self.camera_id} capture FPS: {fps:.1f}")
+                logger.info(f"📊 Camera {self.camera_id} REAL-TIME capture FPS: {fps:.1f}")
                 last_fps_time = current_time
 
-            # Sleep for 60 FPS (16.67ms per frame)
-            time.sleep(0.0167)
+            # NO SLEEP - Get frames as fast as possible for maximum FPS
+            # BUFFERSIZE=1 ensures we always get recent frames
 
         # Cleanup
         if self.cap:
@@ -224,7 +243,7 @@ class VideoStream:
             logger.info(f"🛑 Capture stopped for camera {self.camera_id}")
 
     def _reconnect_camera(self, rtsp_url):
-        """Reconnect to camera with same settings"""
+        """Reconnect to camera with HIGH-PERFORMANCE settings"""
         import time
 
         if self.cap:
@@ -235,15 +254,24 @@ class VideoStream:
         if rtsp_url == "0" or rtsp_url == 0:
             self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.cap.set(cv2.CAP_PROP_FPS, 60)
+            self.cap.set(cv2.CAP_PROP_FPS, 30)
         else:
-            os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'rtsp_transport;tcp'
+            # Apply same HIGH-PERFORMANCE settings as initial connection
+            ffmpeg_options = (
+                'rtsp_transport;tcp|'
+                'fflags;nobuffer|'
+                'flags;low_delay|'
+                'max_delay;500000|'
+                'probesize;32|'
+                'analyzeduration;0|'
+                'sync;ext'
+            )
+            os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = ffmpeg_options
             self.cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.cap.set(cv2.CAP_PROP_FPS, 60)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimal buffer
 
         if self.cap.isOpened():
-            logger.info(f"✅ Reconnected camera {self.camera_id}")
+            logger.info(f"✅ Reconnected camera {self.camera_id} with HIGH-PERFORMANCE mode")
         else:
             logger.error(f"❌ Reconnection failed for camera {self.camera_id}")
             time.sleep(5)

@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\VR DELLA\Desktop\vivyasense_main\sense_env"
+VIRTUAL_ENV="C:\Users\VR DELLA\Desktop\vivyasense_main\vivyasense_admin\backend\sense_env"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
