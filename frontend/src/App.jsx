@@ -7,6 +7,7 @@ import Cameras from './pages/Cameras';
 import LiveMonitoring from './pages/LiveMonitoring';
 import Detections from './pages/Detections';
 import CameraDetail from './pages/CameraDetail';
+import FactoryProductivity from './pages/FactoryProductivity';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/cameras/:id" element={<CameraDetail />} />
           <Route path="/monitoring" element={<LiveMonitoring />} />
           <Route path="/detections" element={<Detections />} />
+          <Route path="/productivity" element={<FactoryProductivity />} />
         </Routes>
       </Layout>
     </Router>

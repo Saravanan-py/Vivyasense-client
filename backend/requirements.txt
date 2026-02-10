@@ -20,4 +20,5 @@ redis==5.0.1
 celery==5.3.6
 shapely==2.0.2
 scipy==1.11.4
+openpyxl==3.1.2
 

@@ -69,7 +69,7 @@ class LineCrossingDetector:
         for detection in detections:
             track_id = detection.get('track_id')
             if track_id is None:
-                logger.warning(f"Detection without track_id: {detection.get('class')} - Line crossing will not work without tracking!")
+                # Skip detections without track_id (tracking not enabled for this model)
                 continue
             
             # Get object center point

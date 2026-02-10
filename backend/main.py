@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 from database import init_db
-from routers import cameras, rois, detections, stream, line_crossing
+from routers import cameras, rois, detections, stream, line_crossing, productivity
 from config import settings
 
 print("\n" + "="*60)
@@ -44,6 +44,7 @@ app.include_router(rois.router)
 app.include_router(detections.router)
 app.include_router(stream.router)
 app.include_router(line_crossing.router)
+app.include_router(productivity.router)
 
 @app.get("/")
 def read_root():

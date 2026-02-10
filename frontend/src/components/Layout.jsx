@@ -5,6 +5,7 @@ import {
   Video,
   Monitor,
   AlertTriangle,
+  Factory,
   Menu,
   X
 } from 'lucide-react';
@@ -18,6 +19,7 @@ const Layout = ({ children }) => {
     { name: 'Cameras', href: '/cameras', icon: Video },
     { name: 'Live Monitoring', href: '/monitoring', icon: Monitor },
     { name: 'Detections', href: '/detections', icon: AlertTriangle },
+    { name: 'Factory Productivity', href: '/productivity', icon: Factory },
   ];
 
   const isActive = (path) => location.pathname === path;

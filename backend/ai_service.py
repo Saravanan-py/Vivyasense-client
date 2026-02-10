@@ -90,6 +90,10 @@ class AIDetectionService:
             'fall_detection': {
                 'path': 'models/best_fall.pt',
                 'classes': ['fall', 'no-fall']
+            },
+            'best_asian1.pt': {
+                'path': 'models/best_asian1.pt',
+                'classes': ['steel']
             }
         }
 
@@ -259,8 +263,6 @@ class AIDetectionService:
                 track_id = None
                 if box.id is not None:
                     track_id = int(box.id[0])
-                else:
-                    print(f"WARNING: No track_id for {class_name} detection - line crossing won't work!")
 
                 detections.append({
                     'class': class_name,

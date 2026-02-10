@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     # Email
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    EMAIL_FROM: str = ""
+    SMTP_USER: str = "saravananbhc30@gmail.com"
+    SMTP_PASSWORD: str = "ztoe ijfv aeyz kwne"
+    EMAIL_FROM: str = "saravananbhc30@gmail.com"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -47,4 +47,6 @@ settings.DETECTION_IMAGES_DIR = os.path.join(BACKEND_DIR, settings.DETECTION_IMA
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 os.makedirs(settings.DETECTION_IMAGES_DIR, exist_ok=True)
 os.makedirs(os.path.join(BACKEND_DIR, "models"), exist_ok=True)
+os.makedirs(os.path.join(BACKEND_DIR, "uploads", "productivity"), exist_ok=True)
+os.makedirs(os.path.join(BACKEND_DIR, "excel_reports"), exist_ok=True)
 
