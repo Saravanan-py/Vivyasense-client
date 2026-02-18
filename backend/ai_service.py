@@ -92,7 +92,7 @@ class AIDetectionService:
                 'classes': ['fall', 'no-fall']
             },
             'best_asian1.pt': {
-                'path': 'models/best_asian1.pt',
+                'path': 'models/best_steel_final.pt',
                 'classes': ['steel']
             }
         }
@@ -274,6 +274,63 @@ class AIDetectionService:
 
                 if track_id is not None:
                     print(f"✓ Detection with track_id={track_id}: {class_name} (conf={conf:.2f})")
+
+        return detections
+
+    def detect_objects_with_tracking(self, frame: np.ndarray, custom_model: str = "general_detection",
+                                     confidence: float = 0.31, allowed_classes: List[str] = None) -> List[Dict[str, Any]]:
+        """
+        Detect objects with TRACKING enabled - always uses track() for persistent IDs
+        This is specifically for steel counting and directional detection
+        """
+        model = self.load_model(custom_model)
+
+        # Use optimal image size for steel detection
+        img_size = 640
+        use_half = torch.cuda.is_available()
+        max_det = 300
+
+        # ALWAYS use track() to get persistent track_id for each detection
+        results = model.track(
+            frame,
+            conf=confidence,
+            verbose=False,
+            device=self.device,
+            half=use_half,
+            imgsz=img_size,
+            max_det=max_det,
+            persist=True,  # CRITICAL: Enable persistent tracking across frames
+            tracker="bytetrack.yaml"  # Use ByteTrack for better performance
+        )
+
+        class_names = self.get_class_names(custom_model)
+        detections = []
+
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                cls_id = int(box.cls[0])
+                class_name = class_names[cls_id] if cls_id < len(class_names) else "unknown"
+
+                # Filter by allowed classes
+                if allowed_classes and class_name not in allowed_classes:
+                    continue
+
+                conf = float(box.conf[0])
+                bbox = box.xyxy[0].cpu().numpy().tolist()
+
+                # Get tracking ID (should always be available with track())
+                track_id = None
+                if box.id is not None:
+                    track_id = int(box.id[0])
+
+                detections.append({
+                    'class': class_name,
+                    'confidence': conf,
+                    'bbox': bbox,  # [x1, y1, x2, y2]
+                    'class_id': cls_id,
+                    'track_id': track_id  # Persistent tracking ID
+                })
 
         return detections
 

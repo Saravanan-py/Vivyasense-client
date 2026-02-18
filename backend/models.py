@@ -143,10 +143,41 @@ class CameraSettings(Base):
 
 class SystemSettings(Base):
     __tablename__ = "system_settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, nullable=False)
     value = Column(Text)
     description = Column(String)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ProductivitySession(Base):
+    """Productivity monitoring session reports"""
+    __tablename__ = "productivity_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, unique=True, nullable=False, index=True)
+
+    # Session metadata
+    rtsp_url = Column(String)
+    model_name = Column(String)
+
+    # Session timing
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime)
+    video_duration = Column(Float, default=0.0)  # Duration in seconds
+
+    # Frame statistics
+    total_frames = Column(Integer, default=0)
+    fps = Column(Float, default=0.0)
+
+    # ROI tracking data (stored as JSON)
+    roi_stats = Column(JSON, default=list)  # List of ROI statistics
+
+    # Recording paths
+    video_recordings = Column(JSON, default=list)  # List of recording file paths
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

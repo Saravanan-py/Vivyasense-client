@@ -11,14 +11,23 @@ const FactoryProductivity = () => {
 
   // Video upload mode
   const [videoFile, setVideoFile] = useState(null);
-  const [videoUrl, setVideoUrl] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(() => {
+    return localStorage.getItem('factoryProductivity_videoUrl') || null;
+  });
+  const [uploadedVideo, setUploadedVideo] = useState(() => {
+    return localStorage.getItem('factoryProductivity_uploadedVideo') === 'true';
+  });
 
   // RTSP mode
   const [rtspUrl, setRtspUrl] = useState(() => {
     return localStorage.getItem('factoryProductivity_rtspUrl') || '';
   });
-  const [isRtspActive, setIsRtspActive] = useState(false);
-  const [rtspSessionId, setRtspSessionId] = useState(null);
+  const [isRtspActive, setIsRtspActive] = useState(() => {
+    return localStorage.getItem('factoryProductivity_isRtspActive') === 'true';
+  });
+  const [rtspSessionId, setRtspSessionId] = useState(() => {
+    return localStorage.getItem('factoryProductivity_rtspSessionId') || null;
+  });
   const [liveStats, setLiveStats] = useState(null);
   const [rtspConnected, setRtspConnected] = useState(() => {
     return localStorage.getItem('factoryProductivity_rtspConnected') === 'true';
@@ -37,9 +46,16 @@ const FactoryProductivity = () => {
   });
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [currentROI, setCurrentROI] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processedVideoUrl, setProcessedVideoUrl] = useState(null);
-  const [productivityData, setProductivityData] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(() => {
+    return localStorage.getItem('factoryProductivity_isProcessing') === 'true';
+  });
+  const [processedVideoUrl, setProcessedVideoUrl] = useState(() => {
+    return localStorage.getItem('factoryProductivity_processedVideoUrl') || null;
+  });
+  const [productivityData, setProductivityData] = useState(() => {
+    const saved = localStorage.getItem('factoryProductivity_productivityData');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -72,6 +88,72 @@ const FactoryProductivity = () => {
   useEffect(() => {
     localStorage.setItem('factoryProductivity_rois', JSON.stringify(rois));
   }, [rois]);
+
+  useEffect(() => {
+    localStorage.setItem('factoryProductivity_isRtspActive', isRtspActive);
+  }, [isRtspActive]);
+
+  useEffect(() => {
+    if (rtspSessionId) {
+      localStorage.setItem('factoryProductivity_rtspSessionId', rtspSessionId);
+    }
+  }, [rtspSessionId]);
+
+  useEffect(() => {
+    if (videoUrl) {
+      localStorage.setItem('factoryProductivity_videoUrl', videoUrl);
+      localStorage.setItem('factoryProductivity_uploadedVideo', 'true');
+      setUploadedVideo(true);
+    }
+  }, [videoUrl]);
+
+  useEffect(() => {
+    localStorage.setItem('factoryProductivity_isProcessing', isProcessing);
+  }, [isProcessing]);
+
+  useEffect(() => {
+    if (processedVideoUrl) {
+      localStorage.setItem('factoryProductivity_processedVideoUrl', processedVideoUrl);
+    }
+  }, [processedVideoUrl]);
+
+  useEffect(() => {
+    if (productivityData) {
+      localStorage.setItem('factoryProductivity_productivityData', JSON.stringify(productivityData));
+    }
+  }, [productivityData]);
+
+  // Validate and restore session on mount
+  useEffect(() => {
+    const validateSession = async () => {
+      const savedSessionId = localStorage.getItem('factoryProductivity_rtspSessionId');
+      const savedIsActive = localStorage.getItem('factoryProductivity_isRtspActive') === 'true';
+
+      if (savedSessionId && savedIsActive) {
+        try {
+          // Check if session still exists on backend
+          const response = await axios.get(`/api/productivity/rtsp/stats/${savedSessionId}`);
+
+          // Session exists, restore state
+          setRtspSessionId(savedSessionId);
+          setIsRtspActive(true);
+          setLiveStats(response.data);
+
+          // Start polling for live stats
+          statsIntervalRef.current = setInterval(fetchLiveStats, 1000);
+        } catch (error) {
+          // Session doesn't exist, clear state
+          console.log('Session not found on backend, clearing state');
+          setIsRtspActive(false);
+          setRtspSessionId(null);
+          localStorage.removeItem('factoryProductivity_isRtspActive');
+          localStorage.removeItem('factoryProductivity_rtspSessionId');
+        }
+      }
+    };
+
+    validateSession();
+  }, []); // Run only on mount
 
   // Draw ROIs on canvas
   useEffect(() => {
@@ -291,6 +373,12 @@ const FactoryProductivity = () => {
       return;
     }
 
+    // Clear any existing interval
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+      statsIntervalRef.current = null;
+    }
+
     try {
       const response = await axios.post('/api/productivity/rtsp/start', {
         rtsp_url: rtspUrl,
@@ -298,8 +386,14 @@ const FactoryProductivity = () => {
         rois: rois
       });
 
-      setRtspSessionId(response.data.session_id);
+      const sessionId = response.data.session_id;
+      setRtspSessionId(sessionId);
       setIsRtspActive(true);
+
+      // Save to localStorage immediately
+      localStorage.setItem('factoryProductivity_rtspSessionId', sessionId);
+      localStorage.setItem('factoryProductivity_isRtspActive', 'true');
+
       toast.success('RTSP monitoring started!');
 
       // Start polling for live stats
@@ -307,6 +401,12 @@ const FactoryProductivity = () => {
     } catch (error) {
       console.error('Error starting RTSP:', error);
       toast.error(error.response?.data?.detail || 'Failed to start RTSP monitoring');
+
+      // Clear state on error
+      setIsRtspActive(false);
+      setRtspSessionId(null);
+      localStorage.removeItem('factoryProductivity_isRtspActive');
+      localStorage.removeItem('factoryProductivity_rtspSessionId');
     }
   };
 
@@ -328,10 +428,19 @@ const FactoryProductivity = () => {
         statsIntervalRef.current = null;
       }
 
+      // Clear session from localStorage
+      localStorage.removeItem('factoryProductivity_isRtspActive');
+      localStorage.removeItem('factoryProductivity_rtspSessionId');
+
       toast.success('RTSP monitoring stopped! Report ready.');
     } catch (error) {
       console.error('Error stopping RTSP:', error);
       toast.error('Failed to stop RTSP monitoring');
+
+      // Clear state even on error
+      setIsRtspActive(false);
+      localStorage.removeItem('factoryProductivity_isRtspActive');
+      localStorage.removeItem('factoryProductivity_rtspSessionId');
     }
   };
 
@@ -596,10 +705,10 @@ const FactoryProductivity = () => {
               </div>
             )}
 
-            {/* Live Feed or ROI Drawing Canvas */}
-            <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+            {/* Live Feed or ROI Drawing Canvas - Full Desktop Size */}
+            <div className="relative bg-black rounded-lg overflow-hidden" style={{ height: isRtspActive ? 'calc(100vh - 350px)' : 'auto', minHeight: isRtspActive ? '650px' : '400px' }}>
               {isRtspActive ? (
-                // Live feed with ROI overlay (same as Live Monitoring page)
+                // Live feed with ROI overlay - Full desktop size
                 <img
                   src={`/api/productivity/rtsp/feed/${rtspSessionId}`}
                   alt="Live RTSP Feed"

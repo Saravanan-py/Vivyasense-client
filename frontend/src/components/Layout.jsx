@@ -6,6 +6,7 @@ import {
   Monitor,
   AlertTriangle,
   Factory,
+  BarChart3,
   Menu,
   X
 } from 'lucide-react';
@@ -20,6 +21,7 @@ const Layout = ({ children }) => {
     { name: 'Live Monitoring', href: '/monitoring', icon: Monitor },
     { name: 'Detections', href: '/detections', icon: AlertTriangle },
     { name: 'Factory Productivity', href: '/productivity', icon: Factory },
+    { name: 'Productivity Dashboard', href: '/productivity-dashboard', icon: BarChart3 },
   ];
 
   const isActive = (path) => location.pathname === path;
