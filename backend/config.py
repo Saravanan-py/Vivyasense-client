@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = "saravananbhc30@gmail.com"
-    SMTP_PASSWORD: str = "ztoe ijfv aeyz kwne"
+    SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = "saravananbhc30@gmail.com"
     
     # Redis
